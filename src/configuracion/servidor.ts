@@ -26,6 +26,10 @@ import {
 } from './vigilia.ts'
 import { pasosDeActualizacion, revisarVersion } from './actualizar.ts'
 
+/** Para armar un único comando de shell sin que un espacio parta el argumento en dos. */
+const comillarParaShell = (arg: string) =>
+  /[\s"]/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg
+
 /**
  * El asistente de configuración.
  *
@@ -168,14 +172,16 @@ export async function arrancarConfigurador(o: OpcionesConfigurador = {}) {
    */
   const correr = (programa: string, argumentos: string[], limiteMs = 20_000) =>
     new Promise<{ ok: boolean; salida: string }>((cumplir) => {
+      const env = { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' }
+
       // `shell: true` en Windows porque winget, docker y cloudflared se
-      // instalan como .cmd y sin shell no se encuentran en el PATH.
-      const proceso = spawn(programa, argumentos, {
-        shell: plataforma === 'windows',
-        // Que git falle en vez de abrir una ventana pidiendo contraseña
-        // que nadie va a ver, colgando el proceso hasta el fin de los días.
-        env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GCM_INTERACTIVE: 'never' },
-      })
+      // instalan como .cmd y sin shell no se encuentran en el PATH. Node
+      // advierte (DEP0190) si a `shell: true` se le pasa además un array de
+      // argumentos, así que en Windows se arma un único string de comando
+      // en vez de mezclar las dos formas.
+      const proceso = plataforma === 'windows'
+        ? spawn([programa, ...argumentos].map(comillarParaShell).join(' '), { shell: true, env })
+        : spawn(programa, argumentos, { shell: false, env })
 
       let salida = ''
       let cerrado = false
