@@ -23,6 +23,8 @@ export interface Movimiento extends Omit<NuevoMovimiento, 'trmAprox'> {
   trmAprox: boolean
   estado: 'registrado' | 'anulado'
   creadoEn: Date
+  /** El nombre del local, puesto a mano. Nunca lo pone el modelo. */
+  local: string | null
 }
 
 interface Fila {
@@ -41,10 +43,11 @@ interface Fila {
   hash_dedup: string
   estado: 'registrado' | 'anulado'
   creado_en: Date
+  local: string | null
 }
 
 const COLUMNAS = `id, fecha, tipo, monto, moneda, monto_cop, trm, trm_aprox,
-  contraparte, concepto, categoria, correo_id, hash_dedup, estado, creado_en`
+  contraparte, concepto, categoria, correo_id, hash_dedup, estado, creado_en, local`
 
 /** Postgres devuelve BIGINT como texto: pasarlo a número es obligatorio. */
 const num = (v: string | number | null): number | null =>
@@ -69,6 +72,7 @@ const aDominio = (f: Fila): Movimiento => ({
   hashDedup: f.hash_dedup,
   estado: f.estado,
   creadoEn: f.creado_en,
+  local: f.local,
 })
 
 export function crearRepoMovimientos(db: BaseDatos) {
@@ -110,6 +114,20 @@ export function crearRepoMovimientos(db: BaseDatos) {
       await db.query(
         `UPDATE movimientos SET estado = 'registrado', anulado_en = NULL WHERE id = $1`,
         [id])
+    },
+
+    /**
+     * El nombre del local, puesto a mano.
+     *
+     * `contraparte` es lo que dijo el correo del banco; a veces es una
+     * cuenta comercial que no se parece al local de verdad. `local` en
+     * blanco (`null`) vuelve a mostrar sólo la contraparte.
+     */
+    async ponerLocal(id: number, local: string | null): Promise<Movimiento | null> {
+      const { rows } = await db.query<Fila>(
+        `UPDATE movimientos SET local = $2 WHERE id = $1 RETURNING ${COLUMNAS}`,
+        [id, local])
+      return rows[0] ? aDominio(rows[0]) : null
     },
 
     async porId(id: number): Promise<Movimiento | null> {

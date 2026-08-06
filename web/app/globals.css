@@ -959,19 +959,41 @@ button.rejilla__hueco:active { box-shadow: inset 0 0 0 1.5px var(--linea-2); col
 
 .movimientos { display: flex; flex-direction: column; gap: 8px; }
 .movimiento {
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
   padding: 13px 15px;
 }
-.movimiento__cuerpo { min-width: 0; }
+.movimiento__cuerpo { min-width: 0; flex: 1; }
+.movimiento__nombre { display: flex; align-items: center; gap: 3px; min-width: 0; }
 .movimiento__quien {
-  font-size: 14.5px; font-weight: 600; letter-spacing: -.016em;
+  min-width: 0; font-size: 14.5px; font-weight: 600; letter-spacing: -.016em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.movimiento__local {
+  display: block; font-size: 12px; font-weight: 550; color: var(--tinta-2);
+  margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .movimiento__meta { display: block; font-size: 12px; color: var(--tinta-3); margin-top: 1px; }
+.movimiento__editar {
+  flex: none; width: 24px; height: 24px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--tinta-3); background: transparent;
+  transition: background-color 140ms var(--entra), color 140ms var(--entra), transform 140ms var(--entra);
+}
+.movimiento__editar:active { transform: scale(.88); }
+.movimiento__editar[aria-expanded='true'] { color: var(--lumen); background: var(--lumen-sv); }
+.movimiento__forma { display: flex; gap: 6px; margin-top: 8px; }
+.movimiento__campo {
+  flex: 1; min-width: 0; height: 32px; padding: 0 11px; border-radius: 8px;
+  background: var(--papel-2); color: var(--tinta);
+  font-size: 12.5px; letter-spacing: -.008em; border: 0;
+}
+.movimiento__forma .btn {
+  height: 32px; padding: 0 12px; font-size: 12.5px;
+}
 .movimiento__cifras { flex: none; text-align: right; }
 .movimiento__monto { font-size: 14.5px; font-weight: 650; letter-spacing: -.02em; }
 .movimiento[data-tipo='ingreso'] .movimiento__monto { color: var(--verde); }
-.movimiento[data-tipo='egreso']  .movimiento__monto { color: var(--tinta); }
+.movimiento[data-tipo='egreso']  .movimiento__monto { color: var(--rojo); }
 .movimiento__nota { display: block; font-size: 10.5px; color: var(--tinta-3); margin-top: 1px; }
 
 /* En pantalla ancha el saldo y lo que hay que pagar caben lado a lado. */

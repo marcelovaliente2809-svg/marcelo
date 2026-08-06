@@ -88,7 +88,7 @@ export class ProveedorGroq implements ProveedorLLM {
           ],
         })
         ultima = respuesta.choices[0]?.message?.content ?? ''
-        return p.esquema.parse(JSON.parse(ultima))
+        return p.esquema.parse(JSON.parse(limpiarFences(ultima)))
       } catch (e) {
         ultimoFallo = e
         causa = causaDe(e)
@@ -108,6 +108,18 @@ export class ProveedorGroq implements ProveedorLLM {
 
     throw new ErrorLLM(explicar(causa, p.modelo, ultimoFallo, intentos), ultima, causa, esperar)
   }
+}
+
+/**
+ * `response_format: json_object` no siempre alcanza: algunos modelos igual
+ * envuelven la respuesta en un bloque de markdown (` ```json ... ``` `).
+ * Sin esto, `JSON.parse` truena con «Unexpected token '`'» delante de un
+ * JSON por lo demás perfecto, y el hecho se pierde tras los reintentos.
+ */
+function limpiarFences(texto: string): string {
+  const limpio = texto.trim()
+  const conFences = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(limpio)
+  return conFences ? conFences[1]!.trim() : limpio
 }
 
 /** El mensaje que va al log tiene que decir qué hacer, no sólo qué pasó. */

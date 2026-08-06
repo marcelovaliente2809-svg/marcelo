@@ -1,4 +1,5 @@
 import { SinConexion } from '@/componentes/SinConexion'
+import { Movimientos } from '@/componentes/Movimientos'
 import { pedir } from '@/lib/api'
 import { exigirSesion } from '@/lib/sesion'
 import { diaLegible, mesLegible, pesos, proporcion, vencimiento } from '@/lib/plata'
@@ -191,31 +192,7 @@ export default async function Pagina() {
                 <h2 className="seccion__titulo">Movimientos</h2>
                 <span className="contador">{t.movimientos.length}</span>
               </div>
-              <div className="movimientos">
-                {t.movimientos.map((m, i) => (
-                  <article
-                    key={m.id} className="tarjeta movimiento" data-anim
-                    data-tipo={m.tipo}
-                    style={{ '--i': Math.min(i, 12) } as React.CSSProperties}
-                  >
-                    <div className="movimiento__cuerpo">
-                      <h3 className="movimiento__quien">{m.contraparte}</h3>
-                      <span className="movimiento__meta">
-                        {diaLegible(m.fecha)}
-                        {m.concepto ? ` · ${m.concepto}` : ''}
-                      </span>
-                    </div>
-                    <div className="movimiento__cifras">
-                      <span className="movimiento__monto mono">
-                        {m.tipo === 'ingreso' ? '+' : '−'}{pesos(m.monto, m.moneda)}
-                      </span>
-                      {m.moneda !== 'COP' && (
-                        <span className="movimiento__nota">sin convertir</span>
-                      )}
-                    </div>
-                  </article>
-                ))}
-              </div>
+              <Movimientos movimientos={t.movimientos} />
             </div>
           )}
 

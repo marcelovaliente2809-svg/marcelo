@@ -272,6 +272,47 @@ test('un JSON mal formado sí se reintenta: eso suele arreglarse solo', async ()
 })
 
 /**
+ * En la máquina de Marcelo esto pasaba con cada correo bancario: el modelo
+ * contestaba un JSON perfecto pero envuelto en ```json ... ```, y
+ * `JSON.parse` truena con «Unexpected token '`'». El libro contable se
+ * quedaba sin un solo movimiento, siempre por el mismo motivo.
+ */
+test('el JSON envuelto en fences de markdown se limpia antes de parsear', async () => {
+  let llamadas = 0
+  const cliente = {
+    chat: { completions: { create: async () => {
+      llamadas++
+      return { choices: [{ message: { content: '```json\n{"a":"ok"}\n```' } }] }
+    } } },
+  }
+  const llm = new ProveedorGroq('k', 'https://x.test/v1')
+  ;(llm as unknown as { cliente: unknown }).cliente = cliente
+
+  const r = await llm.completarJson({
+    modelo: 'm', sistema: 's', usuario: 'u', esquema: z.object({ a: z.string() }),
+  })
+
+  assert.deepEqual(r, { a: 'ok' })
+  assert.equal(llamadas, 1, 'no hacía falta reintentar: el JSON estaba bien, sólo envuelto')
+})
+
+test('también limpia fences sin la etiqueta "json"', async () => {
+  const cliente = {
+    chat: { completions: { create: async () => (
+      { choices: [{ message: { content: '```\n{"a":"ok"}\n```' } }] }
+    ) } },
+  }
+  const llm = new ProveedorGroq('k', 'https://x.test/v1')
+  ;(llm as unknown as { cliente: unknown }).cliente = cliente
+
+  const r = await llm.completarJson({
+    modelo: 'm', sistema: 's', usuario: 'u', esquema: z.object({ a: z.string() }),
+  })
+
+  assert.deepEqual(r, { a: 'ok' })
+})
+
+/**
  * En la máquina de Marcelo esto decía «No se pudo llegar al proveedor» con
  * el proveedor contestando perfectamente: el fallo era del esquema, y un
  * ZodError no trae código HTTP, así que caía en el saco de «red». Mandó a

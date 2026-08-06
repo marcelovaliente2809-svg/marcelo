@@ -220,6 +220,16 @@ export function crearServicioTesoro(d: DepsTesoro) {
     balance,
 
     /**
+     * Ponerle nombre al local a mano, cuando la contraparte del correo del
+     * banco no se parece al comercio de verdad. Vacío borra el nombre y
+     * vuelve a mostrar sólo la contraparte.
+     */
+    async ponerLocal(id: number, local: string | null) {
+      const limpio = local?.trim() || null
+      return d.repoMovimientos.ponerLocal(id, limpio)
+    },
+
+    /**
      * Lo que hay que avisar hoy: vence pronto y no se ha avisado.
      *
      * Se marca como avisada al devolverla, para que el mismo vencimiento

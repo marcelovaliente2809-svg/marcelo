@@ -151,6 +151,8 @@ export interface Movimiento {
   categoria: Categoria
   correoId: number | null
   estado: 'registrado' | 'anulado'
+  /** El nombre del local, puesto a mano. Nunca lo pone el modelo. */
+  local: string | null
 }
 
 export interface CuentaPorPagar {

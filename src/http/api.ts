@@ -285,6 +285,21 @@ export function registrarApi(app: FastifyInstance, d: DepsApi): void {
       return { disponible: true, ...(await d.tesoro.balance(mes)) }
     })
 
+    /**
+     * Ponerle nombre al local a mano. `contraparte` es lo que dijo el
+     * correo del banco, y a veces no se parece al comercio de verdad.
+     */
+    api.post('/tesoro/movimientos/:id/local', async (req, res) => {
+      if (!d.tesoro) {
+        return res.code(503).send({ error: 'El libro contable no está conectado' })
+      }
+      const { id } = Id.parse(req.params)
+      const { local } = z.object({ local: z.string().max(120).nullable() }).parse(req.body)
+      const movimiento = await d.tesoro.ponerLocal(id, local)
+      if (!movimiento) return res.code(404).send({ error: 'No existe ese movimiento' })
+      return movimiento
+    })
+
     // ── el canal de instrucciones ──────────────────────────────
 
     /**

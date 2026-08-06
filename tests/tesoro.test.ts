@@ -267,3 +267,38 @@ test('el resumen del día cuenta lo de hoy y nada más', async () => {
   assert.equal(dia.ingresos, 124_000_000)
   assert.equal(dia.egresos, 8_990_000)
 })
+
+// ── el nombre del local, puesto a mano ──────────────────────────
+
+test('se le puede poner nombre al local cuando la contraparte no se parece', async () => {
+  // «UNIMEDE4» es lo que dijo el correo del banco; el local de verdad es
+  // Dollar City. El modelo no lo sabe: sólo Marcelo puede ponerlo.
+  const t = armar()
+  const r = await t.registrar(hecho({ contraparte: 'UNIMEDE4' }), correo, null)
+  assert.equal(r.estado, 'registrado')
+  if (r.estado !== 'registrado') return
+
+  const actualizado = await t.ponerLocal(r.id, 'Dollar City')
+
+  assert.equal(actualizado?.local, 'Dollar City')
+  assert.equal(actualizado?.contraparte, 'UNIMEDE4', 'la contraparte no se toca')
+
+  const b = await t.balance()
+  assert.equal(b.movimientos[0]!.local, 'Dollar City')
+})
+
+test('un local en blanco vuelve a mostrar sólo la contraparte', async () => {
+  const t = armar()
+  const r = await t.registrar(hecho(), correo, null)
+  if (r.estado !== 'registrado') return assert.fail()
+
+  await t.ponerLocal(r.id, 'Nombre a medias')
+  const limpiado = await t.ponerLocal(r.id, '   ')
+
+  assert.equal(limpiado?.local, null)
+})
+
+test('editar el local de un movimiento que no existe no revienta', async () => {
+  const t = armar()
+  assert.equal(await t.ponerLocal(999_999, 'Lo que sea'), null)
+})
