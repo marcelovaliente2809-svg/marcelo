@@ -430,7 +430,10 @@ export async function arrancarAsistente(config: Config): Promise<void> {
 
   cron.schedule('* * * * *', () => { void drenarCola() })
   // Red de seguridad: si el push falla en silencio, esto lo recoge igual.
-  cron.schedule('*/5 * * * *', () => { void ponerseAlDiaTodas() })
+  // Sin GMAIL_TOPICO_PUBSUB configurado, este es el único camino por el que
+  // se entera de correo nuevo, así que un minuto es el piso real de cron
+  // (no hay forma de bajar de eso sin dejar de ser un sondeo).
+  cron.schedule('* * * * *', () => { void ponerseAlDiaTodas() })
 
   // El resumen de las 21:00, en hora de Bogotá. Si no hizo nada, no manda
   // nada: una asistente que escribe a diario «hoy no pasó nada» se vuelve
