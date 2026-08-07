@@ -133,10 +133,31 @@ export interface Estado {
 
 // ── el tesoro ───────────────────────────────────────────────────
 
-export type Categoria =
-  | 'arriendo' | 'servicios' | 'mercado' | 'transporte' | 'salud' | 'educacion'
-  | 'restaurantes' | 'compras' | 'suscripciones' | 'transferencia' | 'retiro'
-  | 'impuestos' | 'ingreso' | 'otros'
+export const CATEGORIAS = [
+  'arriendo', 'servicios', 'mercado', 'transporte', 'salud', 'educacion',
+  'restaurantes', 'compras', 'suscripciones', 'transferencia', 'retiro',
+  'impuestos', 'ingreso', 'otros',
+] as const
+
+export type Categoria = (typeof CATEGORIAS)[number]
+
+/** Para pintarlas sin que nadie tenga que leer un identificador. */
+export const NOMBRES_CATEGORIA: Record<Categoria, string> = {
+  arriendo: 'Arriendo',
+  servicios: 'Servicios',
+  mercado: 'Mercado',
+  transporte: 'Transporte',
+  salud: 'Salud',
+  educacion: 'Educación',
+  restaurantes: 'Restaurantes',
+  compras: 'Compras',
+  suscripciones: 'Suscripciones',
+  transferencia: 'Transferencias',
+  retiro: 'Retiros',
+  impuestos: 'Impuestos',
+  ingreso: 'Ingresos',
+  otros: 'Otros',
+}
 
 export interface Movimiento {
   id: number

@@ -302,3 +302,30 @@ test('editar el local de un movimiento que no existe no revienta', async () => {
   const t = armar()
   assert.equal(await t.ponerLocal(999_999, 'Lo que sea'), null)
 })
+
+// ── corregir la categoría a mano ────────────────────────────────
+
+test('se le puede corregir la categoría cuando la automática no calzó', async () => {
+  // Sin una contraparte conocida y sin que el modelo proponga nada, cae en
+  // «otros»: el caso típico que hay que poder corregir a mano.
+  const t = armar()
+  const r = await t.registrar(hecho({ contraparte: 'UNIMEDE4' }), correo, null)
+  assert.equal(r.estado, 'registrado')
+  if (r.estado !== 'registrado') return
+
+  const antes = await t.balance()
+  assert.equal(antes.movimientos[0]!.categoria, 'otros')
+
+  const corregido = await t.ponerCategoria(r.id, 'mercado')
+
+  assert.equal(corregido?.categoria, 'mercado')
+  assert.equal(corregido?.contraparte, 'UNIMEDE4', 'la contraparte no se toca')
+
+  const b = await t.balance()
+  assert.equal(b.movimientos[0]!.categoria, 'mercado')
+})
+
+test('corregir la categoría de un movimiento que no existe no revienta', async () => {
+  const t = armar()
+  assert.equal(await t.ponerCategoria(999_999, 'mercado'), null)
+})

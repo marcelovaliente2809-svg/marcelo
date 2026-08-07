@@ -229,6 +229,11 @@ export function crearServicioTesoro(d: DepsTesoro) {
       return d.repoMovimientos.ponerLocal(id, limpio)
     },
 
+    /** Corrige la categoría a mano, cuando la automática no calzó. */
+    async ponerCategoria(id: number, categoria: Categoria) {
+      return d.repoMovimientos.ponerCategoria(id, categoria)
+    },
+
     /**
      * Lo que hay que avisar hoy: vence pronto y no se ha avisado.
      *

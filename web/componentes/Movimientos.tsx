@@ -4,16 +4,21 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useApp } from './contexto'
 import { diaLegible, pesos } from '@/lib/plata'
-import type { Movimiento } from '@/lib/tipos'
+import { CATEGORIAS, NOMBRES_CATEGORIA } from '@/lib/tipos'
+import type { Categoria, Movimiento } from '@/lib/tipos'
 
 /**
- * La lista de movimientos, con edición del nombre del local.
+ * La lista de movimientos, con edición del nombre del local y la categoría.
  *
  * `contraparte` es lo que dijo el correo del banco — a veces una cuenta
  * comercial («UNIMEDE4») que no dice nada de en qué se gastó. `local` es lo
  * que Marcelo pone a mano cuando eso pasa: se ve más chico, debajo, porque
  * la contraparte sigue siendo el dato de verdad y el local es una
  * aclaración suya, no algo que la asistente dedujo.
+ *
+ * La categoría la decide el código (ver `dominio/categorias.ts`), pero a
+ * veces no calza — sobre todo cuando cae en «otros». El desplegable deja
+ * corregirla sin tener que tocar la base de datos a mano.
  */
 
 const LAPIZ = (
@@ -29,6 +34,7 @@ function Fila({ m, i }: { m: Movimiento; i: number }) {
   const [editando, setEditando] = useState(false)
   const [valor, setValor] = useState(m.local ?? '')
   const [guardando, setGuardando] = useState(false)
+  const [guardandoCategoria, setGuardandoCategoria] = useState(false)
 
   function alternar() {
     setValor(m.local ?? '')
@@ -57,6 +63,30 @@ function Fila({ m, i }: { m: Movimiento; i: number }) {
       tostar('No se pudo llegar a la asistente')
     } finally {
       setGuardando(false)
+    }
+  }
+
+  async function cambiarCategoria(e: React.ChangeEvent<HTMLSelectElement>) {
+    const categoria = e.target.value as Categoria
+    if (categoria === m.categoria || guardandoCategoria) return
+    setGuardandoCategoria(true)
+    try {
+      const r = await fetch(`/api/tesoro/movimientos/${m.id}/categoria`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ categoria }),
+      })
+      if (!r.ok) {
+        const c = (await r.json().catch(() => ({}))) as { error?: string }
+        tostar(c.error ?? 'No se pudo guardar')
+        return
+      }
+      tostar(`Categoría: ${NOMBRES_CATEGORIA[categoria]}`)
+      router.refresh()
+    } catch {
+      tostar('No se pudo llegar a la asistente')
+    } finally {
+      setGuardandoCategoria(false)
     }
   }
 
@@ -99,6 +129,15 @@ function Fila({ m, i }: { m: Movimiento; i: number }) {
         <span className="movimiento__monto mono">
           {m.tipo === 'ingreso' ? '+' : '−'}{pesos(m.monto, m.moneda)}
         </span>
+        <select
+          className="movimiento__categoria" data-otros={m.categoria === 'otros' || undefined}
+          value={m.categoria} disabled={guardandoCategoria}
+          onChange={cambiarCategoria} aria-label="En qué se fue"
+        >
+          {CATEGORIAS.map((c) => (
+            <option key={c} value={c}>{NOMBRES_CATEGORIA[c]}</option>
+          ))}
+        </select>
         {m.moneda !== 'COP' && (
           <span className="movimiento__nota">sin convertir</span>
         )}

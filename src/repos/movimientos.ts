@@ -130,6 +130,18 @@ export function crearRepoMovimientos(db: BaseDatos) {
       return rows[0] ? aDominio(rows[0]) : null
     },
 
+    /**
+     * Corrige la categoría a mano, cuando la que decidió el código no
+     * calzó. No hay un «recalcular»: el código no vuelve a mirar el correo
+     * original, sólo la fila.
+     */
+    async ponerCategoria(id: number, categoria: Categoria): Promise<Movimiento | null> {
+      const { rows } = await db.query<Fila>(
+        `UPDATE movimientos SET categoria = $2 WHERE id = $1 RETURNING ${COLUMNAS}`,
+        [id, categoria])
+      return rows[0] ? aDominio(rows[0]) : null
+    },
+
     async porId(id: number): Promise<Movimiento | null> {
       const { rows } = await db.query<Fila>(
         `SELECT ${COLUMNAS} FROM movimientos WHERE id = $1`, [id])
