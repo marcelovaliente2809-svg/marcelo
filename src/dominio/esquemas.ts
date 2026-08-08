@@ -12,7 +12,16 @@ import type { Confianza } from './tipos.ts'
 export const EsquemaReferente = z.discriminatedUnion('tipo', [
   z.object({ tipo: z.literal('hoy') }),
   z.object({ tipo: z.literal('manana') }),
-  z.object({ tipo: z.literal('fecha'), iso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }),
+  // Algunos modelos devuelven un datetime completo (con hora y offset) en
+  // vez de sólo la fecha, a pesar de que se les pide lo contrario. Se
+  // acepta esa forma para no perder el correo por un detalle de formato,
+  // pero resolverReferente() sólo usa la fecha: la hora que el modelo haya
+  // puesto se descarta igual, así que nunca es el modelo quien decide el
+  // momento exacto.
+  z.object({
+    tipo: z.literal('fecha'),
+    iso: z.string().regex(/^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$/),
+  }),
   z.object({
     tipo: z.literal('dia_semana'),
     dia: z.number().int().min(1).max(7),
