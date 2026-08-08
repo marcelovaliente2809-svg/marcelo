@@ -166,6 +166,100 @@ test('el balance suma, resta y dice dónde se fue la plata', async () => {
   assert.deepEqual(b.porCategoria.map((c) => c.nombre), ['Restaurantes', 'Servicios'])
 })
 
+test('el balance de un mes deja fuera lo de los otros', async () => {
+  // El filtrado por mes existía sin usarse y sin probarse. Ahora la pantalla
+  // se apoya en él para navegar, así que más vale que recorte de verdad.
+  const t = armar()
+  await t.registrar(hecho({
+    referente: { tipo: 'fecha', iso: '2026-07-20' }, contraparte: 'JULIO',
+  }), correo, null)
+  await t.registrar(hecho({ contraparte: 'AGOSTO' }), correo, null)
+
+  const julio = await t.balance('2026-07')
+
+  assert.equal(julio.movimientos.length, 1)
+  assert.equal(julio.movimientos[0]!.contraparte, 'JULIO')
+  assert.equal(julio.egresos, 8_990_000, 'lo de agosto no entra en julio')
+})
+
+test('un mes ilegible se queja en vez de devolver un mes vacío', async () => {
+  // Callar aquí es peor que fallar: un balance en cero se lee como
+  // «no gastaste nada», y eso es mentir en silencio.
+  await assert.rejects(() => armar().balance('el mes pasado'), /Mes inválido/)
+})
+
+// ── el año ──────────────────────────────────────────────────────
+
+test('el año reparte por mes y pone ceros donde no hubo nada', async () => {
+  const t = armar()
+  await t.registrar(hecho({
+    tipo: 'ingreso', montoTexto: '$1.240.000', contraparte: 'Nómina',
+    referente: { tipo: 'fecha', iso: '2026-03-10' },
+  }), correo, null)
+  await t.registrar(hecho(), correo, null)
+
+  const a = await t.balanceAnual()
+
+  assert.equal(a.anio, 2026)
+  assert.equal(a.meses.length, 12, 'los doce, siempre')
+  assert.equal(a.ingresos, 124_000_000)
+  assert.equal(a.egresos, 8_990_000)
+  assert.equal(a.neto, 124_000_000 - 8_990_000)
+
+  const marzo = a.meses[2]!
+  const agosto = a.meses[7]!
+  assert.equal(marzo.ingresos, 124_000_000)
+  assert.equal(marzo.egresos, 0)
+  assert.equal(agosto.egresos, 8_990_000)
+  assert.deepEqual(a.meses[0], { mes: 1, ingresos: 0, egresos: 0, neto: 0 },
+    'enero vacío se dice con ceros, no faltando')
+})
+
+test('el año, como el mes, sólo suma pesos y sólo agrupa lo que salió', async () => {
+  const t = armar()
+  await t.registrar(hecho({
+    tipo: 'ingreso', montoTexto: '$1.240.000', contraparte: 'Nómina',
+  }), correo, null)
+  await t.registrar(hecho(), correo, null)
+  await t.registrar(hecho({
+    montoTexto: '45.99', moneda: 'USD', contraparte: 'OpenAI',
+  }), correo, null)
+
+  const a = await t.balanceAnual('2026')
+
+  assert.equal(a.egresos, 8_990_000, 'el cargo en dólares no se mezcla')
+  assert.deepEqual(a.porCategoria.map((c) => c.nombre), ['Restaurantes'],
+    'lo que entró no es una categoría de gasto')
+})
+
+test('sólo se ofrecen los años que tienen algo anotado', async () => {
+  const t = armar()
+  await t.registrar(hecho(), correo, null)
+  await t.registrar(hecho({
+    referente: { tipo: 'fecha', iso: '2024-11-20' }, contraparte: 'VIEJO',
+  }), correo, null)
+
+  assert.deepEqual((await t.balanceAnual()).anios, [2026, 2024],
+    'ofrecer un año vacío es prometer datos que no existen')
+})
+
+test('un año con más de 500 movimientos suma exacto', async () => {
+  // La razón de que el año se sume en SQL. `entre()` corta en 500 filas por
+  // las más recientes: sumar sobre esa lista daría un total plausible al que
+  // le faltarían los meses viejos, y nadie lo notaría.
+  await db.ejecutar(`
+    INSERT INTO movimientos (fecha, tipo, monto, moneda, monto_cop,
+                             contraparte, categoria, hash_dedup)
+    SELECT DATE '2026-01-01' + (i % 300), 'egreso', 1000, 'COP', 1000,
+           'Tienda', 'otros', 'huella-' || i
+      FROM generate_series(1, 600) AS i`)
+
+  const a = await armar().balanceAnual('2026')
+
+  assert.equal(a.egresos, 600_000, 'las 600, no las últimas 500')
+  assert.equal(a.porCategoria[0]!.total, 600_000)
+})
+
 test('anular no borra: el rastro se queda', async () => {
   const t = armar()
   const repo = crearRepoMovimientos(db)

@@ -201,6 +201,30 @@ export interface Tesoro {
   moneda: string
 }
 
+export interface MesDelAnio {
+  /** 1 a 12. */
+  mes: number
+  ingresos: number
+  egresos: number
+  neto: number
+}
+
+/** El año entero. Sin lista de movimientos: a esta escala no se lee. */
+export interface TesoroAnual {
+  disponible: boolean
+  motivo?: string
+  /** Sólo los años con algo anotado. */
+  anios: number[]
+  anio: number
+  ingresos: number
+  egresos: number
+  neto: number
+  /** Los doce, siempre, con ceros donde no hubo nada. */
+  meses: MesDelAnio[]
+  porCategoria: Array<{ categoria: Categoria; nombre: string; total: number }>
+  moneda: string
+}
+
 export interface Graduacion {
   modoSombra: boolean
   dias: Array<{

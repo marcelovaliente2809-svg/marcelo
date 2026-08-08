@@ -56,7 +56,8 @@ export interface DepsApi {
   aMano?: ServicioAMano
 }
 
-const Mes = z.object({ mes: z.string().regex(/^\d{4}-\d{2}/).optional() })
+const Mes = z.object({ mes: z.string().regex(/^\d{4}-\d{2}$/).optional() })
+const Anio = z.object({ anio: z.string().regex(/^\d{4}$/).optional() })
 const Fecha = z.object({ fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() })
 const Dias = z.object({ dias: z.coerce.number().int().min(1).max(90).default(14) })
 const Id = z.object({ id: z.coerce.number().int().positive() })
@@ -284,6 +285,14 @@ export function registrarApi(app: FastifyInstance, d: DepsApi): void {
       }
       const { mes } = Mes.parse(req.query)
       return { disponible: true, ...(await d.tesoro.balance(mes)) }
+    })
+
+    api.get('/tesoro/anio', async (req) => {
+      if (!d.tesoro) {
+        return { disponible: false, motivo: 'El libro contable no está conectado' }
+      }
+      const { anio } = Anio.parse(req.query)
+      return { disponible: true, ...(await d.tesoro.balanceAnual(anio)) }
     })
 
     /**

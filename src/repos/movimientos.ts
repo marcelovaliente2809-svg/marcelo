@@ -157,6 +157,60 @@ export function crearRepoMovimientos(db: BaseDatos) {
     },
 
     /**
+     * Cuánto entró y cuánto salió cada mes del rango.
+     *
+     * La suma la hace Postgres y no JS a propósito. `entre()` corta en 500
+     * filas, y un año las pasa sin esfuerzo: sumar sobre una lista recortada
+     * daría un total plausible y equivocado, que es la forma de fallar que un
+     * libro contable no se puede permitir. Aquí no hay LIMIT que valga.
+     *
+     * Mismas reglas que el balance del mes: sólo lo registrado y sólo pesos,
+     * porque mezclar monedas da un número que no significa nada.
+     */
+    async resumenPorMes(desde: string, hasta: string): Promise<Array<{
+      mes: number; tipo: 'ingreso' | 'egreso'; total: number
+    }>> {
+      const { rows } = await db.query<{
+        mes: string | number; tipo: 'ingreso' | 'egreso'; total: string | number
+      }>(
+        `SELECT EXTRACT(MONTH FROM fecha)::int AS mes, tipo, SUM(monto) AS total
+           FROM movimientos
+          WHERE estado = 'registrado' AND moneda = 'COP'
+            AND fecha >= $1 AND fecha <= $2
+          GROUP BY 1, 2`, [desde, hasta])
+      return rows.map((r) => ({ mes: Number(r.mes), tipo: r.tipo, total: Number(r.total) }))
+    },
+
+    /** Lo gastado por categoría en el rango. Sólo egresos, como el balance. */
+    async totalesPorCategoria(desde: string, hasta: string): Promise<Array<{
+      categoria: Categoria; total: number
+    }>> {
+      const { rows } = await db.query<{ categoria: string; total: string | number }>(
+        `SELECT categoria, SUM(monto) AS total
+           FROM movimientos
+          WHERE estado = 'registrado' AND moneda = 'COP' AND tipo = 'egreso'
+            AND fecha >= $1 AND fecha <= $2
+          GROUP BY categoria
+          ORDER BY SUM(monto) DESC`, [desde, hasta])
+      return rows.map((r) => ({ categoria: r.categoria as Categoria, total: Number(r.total) }))
+    },
+
+    /**
+     * Los años que tienen algo anotado, del más nuevo al más viejo.
+     *
+     * Se consulta en vez de inventar un rango fijo: ofrecer años vacíos en un
+     * desplegable es prometer datos que no existen.
+     */
+    async aniosConDatos(): Promise<number[]> {
+      const { rows } = await db.query<{ anio: string | number }>(
+        `SELECT DISTINCT EXTRACT(YEAR FROM fecha)::int AS anio
+           FROM movimientos
+          WHERE estado = 'registrado'
+          ORDER BY anio DESC`)
+      return rows.map((r) => Number(r.anio))
+    },
+
+    /**
      * Cobros repetidos: mismo comercio, mismo monto, días distintos.
      *
      * No es lo mismo que la deduplicación —eso son avisos repetidos del

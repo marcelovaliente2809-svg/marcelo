@@ -75,6 +75,26 @@ export function masDias(fechaIso: string, dias: number): string {
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * El mes corriente en Bogotá, 'YYYY-MM'.
+ *
+ * Va con zona explícita porque esto se sirve desde Vercel, que corre en UTC:
+ * un 31 a las 7 de la tarde en Bogotá ya es el mes siguiente en UTC, y la
+ * flecha de «mes siguiente» se abriría hacia un mes que aún no empieza.
+ */
+export const mesActual = (): string =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Bogota', year: 'numeric', month: '2-digit',
+  }).format(new Date())
+
+/** Suma meses a un 'YYYY-MM'. Cuenta meses corridos para no pasarse de año. */
+export function masMeses(mesIso: string, meses: number): string {
+  const corrido = Number(mesIso.slice(0, 4)) * 12 + (Number(mesIso.slice(5, 7)) - 1) + meses
+  const anio = Math.floor(corrido / 12)
+  const mes = (corrido % 12) + 1
+  return `${anio}-${String(mes).padStart(2, '0')}`
+}
+
 /** 'hoy', 'ayer', 'mañana' o la fecha larga. */
 export function relativa(fechaIso: string, hoyIso: string): string {
   if (fechaIso === hoyIso) return 'hoy'

@@ -56,3 +56,7 @@ export const mesLegible = (iso: string): string => {
   const [anio, mes] = iso.slice(0, 10).split('-')
   return `${MESES[Number(mes) - 1] ?? ''} de ${anio}`
 }
+
+/** Para el eje del año: 1 → «Ene». */
+export const mesCorto = (mes: number): string =>
+  (MESES[mes - 1] ?? '').slice(0, 3).replace(/^./, (c) => c.toUpperCase())

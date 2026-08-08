@@ -1,9 +1,13 @@
+import Link from 'next/link'
 import { SinConexion } from '@/componentes/SinConexion'
 import { Movimientos } from '@/componentes/Movimientos'
+import { CabeceraTesoro } from '@/componentes/CabeceraTesoro'
+import { VistaAnio } from '@/componentes/VistaAnio'
 import { pedir } from '@/lib/api'
 import { exigirSesion } from '@/lib/sesion'
 import { diaLegible, mesLegible, pesos, proporcion, vencimiento } from '@/lib/plata'
-import type { Tesoro } from '@/lib/tipos'
+import { masMeses, mesActual } from '@/lib/tiempo'
+import type { Tesoro, TesoroAnual } from '@/lib/tipos'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,50 +27,99 @@ const ESCUDO = (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 3 4 6.5v5c0 4.5 3.2 8.4 8 9.5 4.8-1.1 8-5 8-9.5v-5z" /></svg>
 )
 
-export default async function Pagina() {
-  await exigirSesion()
+const sinLibro = (motivo?: string) => (
+  <section className="vista">
+    <div className="cabecera" data-anim>
+      <p className="ojal">tesoro</p>
+      <h1 className="titular titular--corto">Aún no lleva tus cuentas</h1>
+    </div>
+    <div className="bloque">
+      <div className="tarjeta vacio" data-anim>
+        <strong>El libro contable no está conectado</strong>
+        {motivo ?? 'Falta terminar de configurarla.'}
+      </div>
+    </div>
+  </section>
+)
 
-  const r = await pedir<Tesoro>('/tesoro')
+export default async function Pagina({
+  searchParams,
+}: {
+  searchParams: Promise<{ mes?: string; vista?: string; anio?: string }>
+}) {
+  await exigirSesion()
+  const { mes, vista, anio } = await searchParams
+
+  if (vista === 'anio') {
+    const ra = await pedir<TesoroAnual>(
+      anio ? `/tesoro/anio?anio=${encodeURIComponent(anio)}` : '/tesoro/anio')
+    if (!ra.ok) return <SinConexion error={ra.error} que="tu tesoro" />
+    return ra.datos.disponible
+      ? <VistaAnio a={ra.datos} />
+      : sinLibro(ra.datos.motivo)
+  }
+
+  const r = await pedir<Tesoro>(
+    mes ? `/tesoro?mes=${encodeURIComponent(mes)}` : '/tesoro')
   if (!r.ok) return <SinConexion error={r.error} que="tu tesoro" />
 
   const t = r.datos
 
-  if (!t.disponible) {
-    return (
-      <section className="vista">
-        <div className="cabecera" data-anim>
-          <p className="ojal">tesoro</p>
-          <h1 className="titular titular--corto">Aún no lleva tus cuentas</h1>
-        </div>
-        <div className="bloque">
-          <div className="tarjeta vacio" data-anim>
-            <strong>El libro contable no está conectado</strong>
-            {t.motivo ?? 'Falta terminar de configurarla.'}
-          </div>
-        </div>
-      </section>
-    )
-  }
+  if (!t.disponible) return sinLibro(t.motivo)
 
-  const hayAlgo = t.movimientos.length > 0 || t.cuentasPorPagar.length > 0
   const mayorCategoria = t.porCategoria[0]?.total ?? 0
+
+  // El mes que se está viendo sale de la respuesta, no del query: así el
+  // título y las flechas siempre hablan del mismo mes que las cifras.
+  const mesVisto = t.desde.slice(0, 7)
+  const esMesActual = mesVisto >= mesActual()
+
+  // Lo que está por pagar no tiene mes: es lo que se debe hoy. Enseñarlo
+  // mientras se mira marzo diría que aquel marzo se debía esto, que es falso.
+  const porPagar = esMesActual ? t.cuentasPorPagar : []
+  const hayAlgo = t.movimientos.length > 0 || porPagar.length > 0
 
   return (
     <section className="vista">
-      <div className="cabecera" data-anim>
-        <p className="ojal">tesoro</p>
-        <h1 className="titular titular--corto">{mesLegible(t.desde)}</h1>
-        <p className="subtitular">
-          Lo que leyó en tus correos del banco. Sólo lee y anota: nunca mueve plata.
-        </p>
-      </div>
+      <CabeceraTesoro vista="mes">
+        <div className="mesnav">
+          <Link
+            className="mesnav__flecha" aria-label="Mes anterior"
+            href={`/tesoro?mes=${masMeses(mesVisto, -1)}`}
+          >
+            ‹
+          </Link>
+          <h1 className="titular titular--corto">{mesLegible(t.desde)}</h1>
+          {esMesActual ? (
+            <span className="mesnav__flecha" aria-disabled="true" aria-hidden="true">›</span>
+          ) : (
+            <Link
+              className="mesnav__flecha" aria-label="Mes siguiente"
+              href={`/tesoro?mes=${masMeses(mesVisto, 1)}`}
+            >
+              ›
+            </Link>
+          )}
+        </div>
+      </CabeceraTesoro>
 
       {!hayAlgo ? (
         <div className="bloque">
           <div className="tarjeta vacio" data-anim>
-            <strong>Este mes no ha anotado nada todavía</strong>
-            Cuando llegue un correo del banco lo va a leer, sacar el monto y la
-            contraparte, y anotarlo aquí. Un aviso repetido no cuenta dos veces.
+            {esMesActual ? (
+              <>
+                <strong>Este mes no ha anotado nada todavía</strong>
+                Cuando llegue un correo del banco lo va a leer, sacar el monto y
+                la contraparte, y anotarlo aquí. Un aviso repetido no cuenta dos
+                veces.
+              </>
+            ) : (
+              <>
+                <strong>En {mesLegible(t.desde)} no anotó nada</strong>
+                Ese mes no le llegó ningún correo del banco. Con las flechas de
+                arriba puedes seguir mirando otros meses.
+              </>
+            )}
           </div>
           <div className="aviso" data-anim style={{ marginTop: 18 }}>
             {ESCUDO}
@@ -82,7 +135,9 @@ export default async function Pagina() {
           <div className="bloque">
             <div className="saldos">
               <article className="tarjeta saldo" data-anim>
-                <span className="saldo__rotulo">te queda este mes</span>
+                <span className="saldo__rotulo">
+                  {esMesActual ? 'te queda este mes' : 'te quedó'}
+                </span>
                 <p className="saldo__cifra" data-signo={t.neto < 0 ? 'menos' : 'mas'}>
                   {pesos(t.neto)}
                 </p>
@@ -111,14 +166,14 @@ export default async function Pagina() {
           </div>
 
           {/* ── lo único accionable, y por eso va arriba ── */}
-          {t.cuentasPorPagar.length > 0 && (
+          {porPagar.length > 0 && (
             <div className="bloque">
               <div className="seccion">
                 <h2 className="seccion__titulo">Por pagar</h2>
-                <span className="contador">{t.cuentasPorPagar.length}</span>
+                <span className="contador">{porPagar.length}</span>
               </div>
               <div className="pactos">
-                {t.cuentasPorPagar.map((c, i) => {
+                {porPagar.map((c, i) => {
                   const v = vencimiento(c.diasRestantes)
                   return (
                     <article

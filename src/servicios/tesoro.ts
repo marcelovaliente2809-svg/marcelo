@@ -58,6 +58,26 @@ export interface Balance {
   moneda: string
 }
 
+/**
+ * El año entero, para comparar meses de un vistazo.
+ *
+ * No trae `movimientos`: a esta escala la lista no se lee, y arrastrarla sólo
+ * para sumarla es lo que obligaría a recortarla. Los totales vienen sumados
+ * por Postgres, así que son exactos por muchos movimientos que haya.
+ */
+export interface BalanceAnual {
+  /** Sólo los años con algo anotado, para poder elegir sin prometer vacíos. */
+  anios: number[]
+  anio: number
+  ingresos: number
+  egresos: number
+  neto: number
+  /** Los doce, siempre, con ceros donde no hubo nada. */
+  meses: Array<{ mes: number; ingresos: number; egresos: number; neto: number }>
+  porCategoria: Array<{ categoria: Categoria; nombre: string; total: number }>
+  moneda: string
+}
+
 export function crearServicioTesoro(d: DepsTesoro) {
   const zona = () => d.reloj.ahora().zoneName ?? 'America/Bogota'
 
@@ -167,6 +187,10 @@ export function crearServicioTesoro(d: DepsTesoro) {
     const base = mesIso
       ? DateTime.fromISO(mesIso, { zone: zona() })
       : ahora
+    // Sin esto una fecha ilegible se cuela hasta el SQL como null y devuelve
+    // un mes vacío, que se lee igual que «no gastaste nada».
+    if (!base.isValid) throw new Error(`Mes inválido: ${mesIso}`)
+
     const desde = base.startOf('month')
     const hasta = base.endOf('month')
 
@@ -215,9 +239,58 @@ export function crearServicioTesoro(d: DepsTesoro) {
     }
   }
 
+  /**
+   * El año mes a mes.
+   *
+   * Los doce meses salen siempre, aunque estén en cero: un año al que le
+   * faltan los meses vacíos no se puede comparar de un vistazo, y comparar
+   * es para lo único que sirve esta vista.
+   */
+  async function balanceAnual(anioIso?: string): Promise<BalanceAnual> {
+    const base = anioIso
+      ? DateTime.fromISO(anioIso, { zone: zona() })
+      : d.reloj.ahora()
+    if (!base.isValid) throw new Error(`Año inválido: ${anioIso}`)
+
+    const desde = base.startOf('year').toISODate()!
+    const hasta = base.endOf('year').toISODate()!
+
+    const [porMes, porCategoria, anios] = await Promise.all([
+      d.repoMovimientos.resumenPorMes(desde, hasta),
+      d.repoMovimientos.totalesPorCategoria(desde, hasta),
+      d.repoMovimientos.aniosConDatos(),
+    ])
+
+    const meses = Array.from({ length: 12 }, (_, i) => {
+      const mes = i + 1
+      const total = (tipo: 'ingreso' | 'egreso') =>
+        porMes.find((r) => r.mes === mes && r.tipo === tipo)?.total ?? 0
+      const ingresos = total('ingreso')
+      const egresos = total('egreso')
+      return { mes, ingresos, egresos, neto: ingresos - egresos }
+    })
+
+    const ingresos = meses.reduce((t, m) => t + m.ingresos, 0)
+    const egresos = meses.reduce((t, m) => t + m.egresos, 0)
+
+    return {
+      anios,
+      anio: base.year,
+      ingresos,
+      egresos,
+      neto: ingresos - egresos,
+      meses,
+      porCategoria: porCategoria.map(({ categoria, total }) => ({
+        categoria, nombre: NOMBRES[categoria], total,
+      })),
+      moneda: 'COP',
+    }
+  }
+
   return {
     registrar,
     balance,
+    balanceAnual,
 
     /**
      * Ponerle nombre al local a mano, cuando la contraparte del correo del

@@ -329,7 +329,10 @@ body {
   font-size: 11.5px; font-weight: 650; letter-spacing: -.005em; color: var(--tinta-3);
   transition: color 180ms var(--entra), background-color 220ms var(--entra), box-shadow 220ms var(--entra);
 }
-.conmutador__op[aria-pressed="true"] {
+/* aria-pressed cuando son botones; aria-current cuando son enlaces, que es
+   como lo usa el Tesoro para no volverse cliente sólo por un conmutador. */
+.conmutador__op[aria-pressed="true"],
+.conmutador__op[aria-current="page"] {
   color: var(--tinta); background: var(--papel); box-shadow: var(--sombra-1);
 }
 
@@ -1007,11 +1010,109 @@ button.rejilla__hueco:active { box-shadow: inset 0 0 0 1.5px var(--linea-2); col
 .movimiento__categoria[data-otros] { color: var(--lumen); }
 .movimiento__categoria:disabled { opacity: .5; cursor: default; }
 
+/* ── 17c. tesoro · el mes que se mira y el año entero ────────────
+   Las flechas van pegadas al título, no en una fila de botones aparte:
+   mirar otro mes no es una acción, es cambiar de qué habla el título.
+
+   La fila envuelve porque el marco es de teléfono: cuando el título, las
+   flechas y el conmutador no caben en una línea, el conmutador baja y se
+   queda a la derecha en vez de apretar el título hasta partirlo. */
+
+.cabecera__fila {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px 12px; flex-wrap: wrap;
+}
+/* El margen automático es lo que lo mantiene a la derecha también cuando
+   baja de línea: con sólo space-between, al envolver se iba a la izquierda. */
+.cabecera__fila > .conmutador { margin-left: auto; }
+.mesnav { display: flex; align-items: center; gap: 4px; }
+.mesnav__flecha {
+  flex: none; font-size: 21px; line-height: 1; color: var(--tinta-3);
+  padding: 1px 7px; border-radius: 9px;
+  transition: color 160ms var(--entra), background-color 160ms var(--entra);
+}
+.mesnav__flecha:hover { color: var(--tinta-2); background: var(--papel-2); }
+.mesnav__flecha[aria-disabled="true"] { opacity: .3; pointer-events: none; }
+
+/* El año se elige donde iría el título, así que se viste de título. */
+.anual__anio { position: relative; display: inline-flex; align-items: center; }
+.anual__selector {
+  appearance: none; -webkit-appearance: none;
+  font-family: var(--display); font-size: 28px; font-weight: 700;
+  line-height: 1.06; letter-spacing: -.035em; color: var(--tinta);
+  background: transparent; border: 0; padding: 0 22px 0 0; cursor: pointer;
+}
+.anual__anio::after {
+  content: ''; position: absolute; right: 5px; top: 50%;
+  width: 7px; height: 7px; margin-top: -6px; pointer-events: none;
+  border-right: 2px solid var(--tinta-3); border-bottom: 2px solid var(--tinta-3);
+  border-radius: 1px; transform: rotate(45deg);
+}
+
+/* Barras y no una línea: cada mes es una cifra cerrada, no el punto de un
+   continuo, y unirlos insinuaría un camino entre meses que no existe.
+   Una sola escala para las dos series — con dos ejes las alturas dejarían
+   de ser comparables, que es lo único que este gráfico tiene que hacer. */
+.anual__grafico { padding: 16px 14px 12px; }
+.anual__leyenda {
+  display: flex; gap: 14px; margin-bottom: 14px;
+  font-size: 11.5px; font-weight: 600; color: var(--tinta-2);
+}
+.anual__clave { display: inline-flex; align-items: center; gap: 5px; }
+.anual__clave i { width: 9px; height: 9px; border-radius: 3px; }
+.anual__clave i[data-serie="entro"] { background: var(--verde); }
+.anual__clave i[data-serie="salio"] { background: var(--rojo); }
+
+.anual__barras {
+  display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px;
+  align-items: end;
+}
+.anual__mes { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+/* El hueco de 2px es lo que deja leer dos barras contiguas como dos. */
+.anual__par { display: flex; align-items: flex-end; gap: 2px; height: 128px; }
+.anual__barra {
+  flex: 1; min-width: 0; border-radius: 4px 4px 0 0;
+  height: calc(var(--parte, 0) * 100%);
+  animation: crecerAlto 620ms var(--sal) backwards;
+}
+.anual__barra[data-serie="entro"] { background: var(--verde); }
+.anual__barra[data-serie="salio"] { background: var(--rojo); }
+.anual__eje {
+  font-size: 9.5px; font-weight: 600; letter-spacing: -.01em;
+  color: var(--tinta-3); text-align: center;
+}
+@keyframes crecerAlto { from { height: 0 } }
+
+/* La tabla dice lo que el gráfico no: las cifras exactas. Scroll propio
+   para que en un teléfono se desplace ella y nunca la página. */
+.anual__caja { padding: 6px 4px; overflow-x: auto; }
+.anual__tabla {
+  width: 100%; min-width: 316px; border-collapse: collapse; font-size: 12.5px;
+}
+.anual__tabla th, .anual__tabla td { padding: 8px 10px; white-space: nowrap; }
+.anual__tabla thead th {
+  font-size: 10.5px; font-weight: 650; letter-spacing: .02em;
+  color: var(--tinta-3); text-align: right;
+}
+.anual__tabla thead th:first-child { text-align: left; }
+.anual__tabla tbody th, .anual__tabla tfoot th {
+  text-align: left; font-weight: 600; color: var(--tinta-2);
+}
+.anual__tabla td { text-align: right; color: var(--tinta-2); }
+.anual__tabla tbody tr { border-top: 1px solid var(--linea); }
+.anual__tabla tfoot tr { border-top: 1px solid var(--linea-2); }
+.anual__tabla tfoot th, .anual__tabla tfoot td { color: var(--tinta); font-weight: 650; }
+/* Sólo el balance lleva color: es donde el signo es la información. Los
+   meses en cero se quedan neutros, para no pintar de verde una fila vacía. */
+.anual__tabla td[data-signo="mas"] { color: var(--verde); }
+.anual__tabla td[data-signo="menos"] { color: var(--rojo); }
+
 /* En pantalla ancha el saldo y lo que hay que pagar caben lado a lado. */
 @media (min-width: 1024px) {
   .app:has(.dock) .saldos { display: grid; grid-template-columns: 1.2fr 1fr; align-items: start; }
   .app:has(.dock) .saldos__par { grid-template-columns: 1fr 1fr; }
   .app:has(.dock) .movimientos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .app:has(.dock) .anual__par { height: 168px; }
 }
 
 /* ── 18. escritorio ─────────────────────────────────────────────
